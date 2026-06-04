@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mood Board Studio — Communications Technology 12</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=Space+Mono:wght@400;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --ink:#1a1714;
+    --paper:#f4efe6;
+    --card:#fffdf8;
+    --accent:#c2410c;
+    --accent2:#0f766e;
+    --line:#d9cfbf;
+    --shadow:rgba(40,30,20,.18);
+    --muted:#7a6f60;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:'Outfit',sans-serif;
+    background:var(--paper);
+    background-image:radial-gradient(var(--line) .5px,transparent .5px);
+    background-size:22px 22px;
+    color:var(--ink);
+    height:100vh;overflow:hidden;
+  }
+  /* ---- top bar ---- */
+  header{
+    display:flex;align-items:center;gap:18px;
+    padding:12px 20px;
+    background:var(--ink);color:var(--paper);
+    box-shadow:0 2px 12px var(--shadow);
+    z-index:50;position:relative;
+  }
+  header h1{font-family:'Fraunces',serif;font-weight:600;font-size:20px;letter-spacing:-.3px}
+  header h1 span{color:var(--accent);font-style:italic}
+  .board-name{
+    background:transparent;border:none;border-bottom:1px dashed #6b6258;
+    color:var(--paper);font-family:'Space Mono',monospace;font-size:13px;
+    padding:4px 6px;width:200px;
+  }
+  .board-name:focus{outline:none;border-bottom-color:var(--accent)}
+  .spacer{flex:1}
+  .btn{
+    font-family:'Space Mono',monospace;font-size:11px;text-transform:uppercase;
+    letter-spacing:.8px;border:1px solid var(--paper);background:transparent;
+    color:var(--paper);padding:7px 12px;cursor:pointer;border-radius:2px;
+    transition:all .15s;
+  }
+  .btn:hover{background:var(--paper);color:var(--ink)}
+  .btn.go{background:var(--accent);border-color:var(--accent)}
+  .btn.go:hover{background:#9a330a;color:#fff}
+  /* ---- layout ---- */
+  .wrap{display:flex;height:calc(100vh - 53px)}
+  /* ---- left tool rail ---- */
+  .rail{
+    width:62px;background:var(--card);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;align-items:center;padding:14px 0;gap:6px;
+    z-index:30;
+  }
+  .tool{
+    width:44px;height:44px;border:1px solid transparent;border-radius:8px;
+    background:none;cursor:pointer;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:2px;color:var(--ink);
+    font-size:9px;font-family:'Space Mono',monospace;transition:all .15s;
+  }
+  .tool svg{width:18px;height:18px}
+  .tool:hover{background:var(--paper);border-color:var(--line)}
+  .tool.active{background:var(--ink);color:var(--paper)}
+  /* ---- panel ---- */
+  .panel{
+    width:280px;background:var(--card);border-right:1px solid var(--line);
+    overflow-y:auto;padding:18px;display:none;
+  }
+  .panel.open{display:block}
+  .panel h2{font-family:'Fraunces',serif;font-size:16px;margin-bottom:4px}
+  .panel .hint{font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.4}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-family:'Space Mono',monospace;font-size:10px;
+    text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:5px}
+  .field input,.field textarea,.field select{
+    width:100%;border:1px solid var(--line);background:var(--paper);
+    padding:8px;font-family:'Outfit';font-size:13px;border-radius:4px;color:var(--ink);
+  }
+  .field textarea{resize:vertical;min-height:54px}
+  .palette{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .swatch-chip{width:38px;height:38px;border-radius:6px;cursor:pointer;
+    border:2px solid #fff;box-shadow:0 1px 4px var(--shadow);position:relative}
+  .swatch-chip span{position:absolute;bottom:-15px;left:0;right:0;text-align:center;
+    font-size:8px;font-family:'Space Mono';color:var(--muted)}
+  .full{width:100%;padding:9px;background:var(--accent2);color:#fff;border:none;
+    border-radius:4px;cursor:pointer;font-family:'Space Mono';font-size:11px;
+    text-transform:uppercase;letter-spacing:.6px;margin-top:4px}
+  .full:hover{background:#0a5a52}
+  .font-card{border:1px solid var(--line);padding:10px;border-radius:6px;margin-bottom:8px;
+    cursor:pointer;background:var(--paper);transition:all .15s}
+  .font-card:hover{border-color:var(--accent);transform:translateX(2px)}
+  .font-card .pair-name{font-size:9px;font-family:'Space Mono';color:var(--muted);text-transform:uppercase}
+  /* ---- canvas ---- */
+  .stage{flex:1;position:relative;overflow:auto;background:transparent}
+  .brief{
+    position:absolute;top:16px;left:16px;right:16px;z-index:5;
+    background:rgba(255,253,248,.92);border:1px solid var(--line);
+    border-left:4px solid var(--accent);padding:12px 16px;border-radius:6px;
+    backdrop-filter:blur(4px);max-width:640px;
+  }
+  .brief label{font-family:'Space Mono';font-size:9px;text-transform:uppercase;
+    letter-spacing:.8px;color:var(--accent)}
+  .brief textarea{width:100%;border:none;background:transparent;font-family:'Fraunces',serif;
+    font-size:15px;resize:none;color:var(--ink);margin-top:2px}
+  .brief textarea:focus{outline:none}
+  #canvas{position:relative;width:2000px;height:1400px;margin:0 auto}
+  .item{position:absolute;cursor:grab;border-radius:4px;box-shadow:0 4px 18px var(--shadow);
+    background:var(--card);transition:box-shadow .15s}
+  .item.selected{box-shadow:0 0 0 2px var(--accent),0 8px 24px var(--shadow)}
+  .item img{width:100%;height:100%;object-fit:cover;border-radius:4px;display:block;pointer-events:none}
+  .item.note{background:#fef9c3;padding:12px;font-family:'Outfit';font-size:13px;
+    border:1px solid #e6dca0;line-height:1.4}
+  .item.note textarea{width:100%;height:100%;border:none;background:transparent;resize:none;
+    font-family:'Outfit';font-size:13px;color:#5c4a00}
+  .item.note textarea:focus{outline:none}
+  .item.swatchblock{display:flex;align-items:flex-end;justify-content:center;
+    padding-bottom:8px;font-family:'Space Mono';font-size:11px;color:#fff;
+    text-shadow:0 1px 3px rgba(0,0,0,.5)}
+  .item.typeblock{padding:16px;background:var(--card);overflow:hidden}
+  .resize{position:absolute;right:-5px;bottom:-5px;width:14px;height:14px;
+    background:var(--accent);border:2px solid #fff;border-radius:50%;cursor:se-resize}
+  .item:not(.selected) .resize{display:none}
+  .rationale{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;
+    background:var(--accent2);color:#fff;border:2px solid #fff;cursor:pointer;font-size:11px;
+    display:flex;align-items:center;justify-content:center}
+  .rationale.filled{background:var(--accent)}
+  .del{position:absolute;top:-6px;left:-6px;width:22px;height:22px;border-radius:50%;
+    background:var(--ink);color:#fff;border:2px solid #fff;cursor:pointer;font-size:12px;
+    display:none;align-items:center;justify-content:center}
+  .item.selected .del{display:flex}
+  /* zones */
+  .zone{position:absolute;border:2px dashed var(--line);border-radius:8px;
+    background:rgba(217,207,191,.12)}
+  .zone .zlabel{position:absolute;top:-11px;left:14px;background:var(--paper);
+    padding:0 8px;font-family:'Space Mono';font-size:10px;text-transform:uppercase;
+    letter-spacing:1px;color:var(--muted)}
+  /* rubric drawer */
+  .rubric{position:absolute;bottom:16px;right:16px;width:300px;z-index:6;
+    background:var(--card);border:1px solid var(--line);border-radius:8px;
+    box-shadow:0 6px 24px var(--shadow);overflow:hidden}
+  .rubric h3{background:var(--ink);color:var(--paper);font-family:'Fraunces',serif;
+    font-size:14px;padding:9px 14px;cursor:pointer;display:flex;justify-content:space-between}
+  .rubric ul{list-style:none;padding:10px 14px;max-height:0;overflow:hidden;transition:max-height .25s}
+  .rubric.open ul{max-height:300px;overflow-y:auto}
+  .rubric li{display:flex;gap:8px;padding:6px 0;font-size:12px;align-items:flex-start;line-height:1.3}
+  .rubric input[type=checkbox]{margin-top:2px;accent-color:var(--accent)}
+  /* rationale modal */
+  .modal{position:fixed;inset:0;background:rgba(26,23,20,.55);display:none;
+    align-items:center;justify-content:center;z-index:100}
+  .modal.open{display:flex}
+  .modal-box{background:var(--card);width:420px;max-width:90vw;border-radius:10px;
+    padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+  .modal-box h3{font-family:'Fraunces',serif;font-size:18px;margin-bottom:4px}
+  .modal-box p{font-size:12px;color:var(--muted);margin-bottom:12px}
+  .modal-box textarea{width:100%;min-height:110px;border:1px solid var(--line);
+    border-radius:6px;padding:10px;font-family:'Outfit';font-size:14px;resize:vertical}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
+  .empty-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    text-align:center;color:var(--muted);font-family:'Space Mono';font-size:13px;pointer-events:none}
+  .empty-hint svg{width:40px;height:40px;opacity:.4;margin-bottom:8px}
+  /* help panel */
+  .help-block{display:flex;gap:10px;margin-bottom:14px;font-size:12.5px;line-height:1.45}
+  .help-block .step-num{flex:none;width:22px;height:22px;border-radius:50%;background:var(--ink);
+    color:var(--paper);font-family:'Space Mono';font-size:11px;display:flex;align-items:center;justify-content:center}
+  .help-block.save{background:#fef3c7;border:1px solid #e6dca0;border-radius:6px;padding:10px}
+  .help-block.save .step-num{background:var(--accent)}
+  .welcome-box{width:460px}
+  .welcome-list{margin:0 0 4px 0;padding-left:20px}
+  .welcome-list li{font-size:13.5px;line-height:1.5;margin-bottom:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Mood<span>·</span>Board Studio</h1>
+  <input class="board-name" id="boardName" placeholder="Untitled board…">
+  <div class="spacer"></div>
+  <button class="btn" id="newBtn">New</button>
+  <button class="btn" id="loadBtn">Open Project</button>
+  <button class="btn" id="saveBtn">Save Project</button>
+  <button class="btn" id="pngBtn">Export PNG</button>
+  <button class="btn go" id="pdfBtn">Export PDF</button>
+  <input type="file" id="projInput" accept=".json,application/json" style="display:none">
+</header>
+
+<div class="wrap">
+  <!-- tool rail -->
+  <nav class="rail">
+    <button class="tool" data-panel="image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Image</button>
+    <button class="tool" data-panel="color"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/><path d="M12 2a10 10 0 100 20 2 2 0 002-2 2 2 0 012-2h2a2 2 0 002-2 10 10 0 00-10-10z"/></svg>Color</button>
+    <button class="tool" data-panel="type"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>Type</button>
+    <button class="tool" data-action="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></svg>Note</button>
+    <div style="flex:1"></div>
+    <button class="tool" data-panel="help"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12" y2="17"/></svg>Help</button>
+  </nav>
+
+  <!-- IMAGE panel -->
+  <section class="panel" id="panel-image">
+    <h2>Add Imagery</h2>
+    <p class="hint">Upload your own or search free, license-clean stock. Always credit your sources in the rationale.</p>
+    <div class="field">
+      <label>Upload from device</label>
+      <input type="file" id="fileInput" accept="image/*" multiple>
+    </div>
+    <div class="field">
+      <label>Paste image URL</label>
+      <input type="text" id="urlInput" placeholder="https://…">
+      <button class="full" id="addUrl">Add to board</button>
+    </div>
+    <div class="field">
+      <label>Search stock (Pexels)</label>
+      <input type="text" id="stockQ" placeholder="e.g. neon city night">
+      <button class="full" id="stockBtn">Search</button>
+      <div id="stockResults" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px"></div>
+    </div>
+  </section>
+
+  <!-- COLOR panel -->
+  <section class="panel" id="panel-color">
+    <h2>Build a Palette</h2>
+    <p class="hint">Pick colours by hand, or pull a palette straight out of any image on your board.</p>
+    <div class="field">
+      <label>Pick a colour</label>
+      <input type="color" id="colorPick" value="#c2410c" style="height:42px">
+      <button class="full" id="addSwatch">Drop swatch on board</button>
+    </div>
+    <div class="field">
+      <label>Extract from board image</label>
+      <p class="hint" style="margin:0">Select an image on the board, then:</p>
+      <button class="full" id="extractBtn" style="background:var(--accent)">Extract 5 colours</button>
+      <div class="palette" id="extracted"></div>
+    </div>
+  </section>
+
+  <!-- TYPE panel -->
+  <section class="panel" id="panel-type">
+    <h2>Typography</h2>
+    <p class="hint">Drop a font-pairing specimen onto your board to test the voice of your project.</p>
+    <div id="fontPairs"></div>
+  </section>
+
+  <!-- HELP panel -->
+  <section class="panel" id="panel-help">
+    <h2>How to use this</h2>
+    <p class="hint">A mood board collects the colours, type, and images that capture the <em>feeling</em> of your project — before you start designing.</p>
+
+    <div class="help-block">
+      <span class="step-num">1</span>
+      <div><strong>Read the brief</strong><br>It's pinned at the top of the canvas. Write your creative direction there.</div>
+    </div>
+    <div class="help-block">
+      <span class="step-num">2</span>
+      <div><strong>Add your pieces</strong><br>Use the left tools: <b>Image</b> (upload / paste / search), <b>Color</b> (pick or extract from a photo), <b>Type</b> (font pairings), <b>Note</b> (sticky notes).</div>
+    </div>
+    <div class="help-block">
+      <span class="step-num">3</span>
+      <div><strong>Arrange it</strong><br>Drag pieces around. Drag the orange dot at the corner to resize.</div>
+    </div>
+    <div class="help-block">
+      <span class="step-num">4</span>
+      <div><strong>Explain your choices</strong><br>Click the green <b>●</b> on any piece to write <em>why</em> you chose it. This is the part that's graded — turn the dot orange.</div>
+    </div>
+    <div class="help-block save">
+      <span class="step-num">5</span>
+      <div><strong>SAVE so you don't lose work</strong><br>Click <b>Save Project</b> → it downloads a file. <b>Move that file into your Google Drive.</b> Next class, click <b>Open Project</b> and choose it to keep working.<br><em style="color:var(--accent)">This is manual — save before you close the tab, every class.</em></div>
+    </div>
+    <div class="help-block">
+      <span class="step-num">6</span>
+      <div><strong>Hand it in</strong><br>When finished, click <b>Export PDF</b> (or PNG) and submit that.</div>
+    </div>
+    <button class="full" id="showWelcome" style="margin-top:6px">Show the welcome screen again</button>
+  </section>
+  <div class="stage" id="stage">
+    <div class="brief">
+      <label>Project Brief</label>
+      <textarea id="briefText" rows="2" placeholder="Paste the assignment prompt or write your creative direction here…"></textarea>
+    </div>
+    <div id="canvas">
+      <div class="empty-hint" id="emptyHint">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 15l5-5 4 4 3-3 6 6"/></svg><br>
+        Use the tools on the left to start building.<br><span style="font-size:11px">New here? Tap <b>Help</b> at the bottom-left.</span>
+      </div>
+    </div>
+    <!-- rubric -->
+    <div class="rubric" id="rubric">
+      <h3 id="rubricToggle">Outcome Checklist ▴</h3>
+      <ul>
+        <li><input type="checkbox"> Board shows a clear, intentional creative direction (not a random collection).</li>
+        <li><input type="checkbox"> A deliberate colour palette is present and justified.</li>
+        <li><input type="checkbox"> Typography choices suit the audience and message.</li>
+        <li><input type="checkbox"> Imagery is appropriate, original or properly sourced.</li>
+        <li><input type="checkbox"> Each key element has a written rationale (the ● buttons).</li>
+        <li><input type="checkbox"> Composition demonstrates design principles (balance, contrast, hierarchy).</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- rationale modal -->
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <h3>Why this choice?</h3>
+    <p>Explain how this element supports your creative direction. This is what's actually being assessed.</p>
+    <textarea id="rationaleText" placeholder="I chose this because…"></textarea>
+    <div class="modal-actions">
+      <button class="btn" style="border-color:var(--ink);color:var(--ink)" id="rCancel">Cancel</button>
+      <button class="btn go" id="rSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- welcome modal -->
+<div class="modal" id="welcome">
+  <div class="modal-box welcome-box">
+    <h3>Welcome to Mood Board Studio</h3>
+    <p style="margin-bottom:14px">A mood board collects the colours, fonts, and images that capture the <em>feeling</em> of your project. Here's the quick version:</p>
+    <ol class="welcome-list">
+      <li><b>Add</b> images, colours, type, and notes from the tools on the left.</li>
+      <li><b>Arrange</b> them by dragging; resize from the corner dot.</li>
+      <li>Click the <b>●</b> on a piece to explain <b>why</b> you chose it — that's the graded part.</li>
+      <li><b>Save Project</b> → put the file in your <b>Google Drive</b> → <b>Open Project</b> next class. Save before you close the tab!</li>
+      <li><b>Export PDF</b> to hand it in.</li>
+    </ol>
+    <div class="modal-actions">
+      <button class="btn go" id="welcomeStart">Start building</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const PEXELS_KEY = ""; // optional: paste a free Pexels API key to enable stock search
+const canvas = document.getElementById('canvas');
+const stage = document.getElementById('stage');
+let selected=null, rationaleTarget=null, z=10;
+
+/* ---------- persistence ---------- */
+const KEY='moodboard.v1';
+function serialize(){
+  const items=[...canvas.querySelectorAll('.item')].map(el=>({
+    type:el.dataset.type,
+    x:el.style.left,y:el.style.top,w:el.style.width,h:el.style.height,
+    src:el.dataset.src||'', color:el.dataset.color||'',
+    text:el.querySelector('textarea')?el.querySelector('textarea').value:(el.dataset.text||''),
+    rationale:el.dataset.rationale||'', html:el.dataset.type==='typeblock'?el.innerHTML:''
+  }));
+  return {
+    _format:'moodboard-studio', _version:1,
+    name:document.getElementById('boardName').value,
+    brief:document.getElementById('briefText').value, items
+  };
+}
+function applyData(d,replace){
+  if(!d)return;
+  if(replace)canvas.querySelectorAll('.item').forEach(i=>i.remove());
+  document.getElementById('boardName').value=d.name||'';
+  document.getElementById('briefText').value=d.brief||'';
+  (d.items||[]).forEach(i=>buildItem(i));
+  checkEmpty();
+}
+function save(){ localStorage.setItem(KEY,JSON.stringify(serialize())); }
+function load(){
+  let d;try{d=JSON.parse(localStorage.getItem(KEY))}catch(e){return}
+  applyData(d,false);
+}
+
+/* ---------- save / open project file ---------- */
+document.getElementById('saveBtn').onclick=()=>{
+  const data=serialize();
+  const safe=(data.name||'moodboard').replace(/[^a-z0-9_-]+/gi,'_').toLowerCase();
+  const blob=new Blob([JSON.stringify(data)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=safe+'.moodboard.json';
+  a.click();URL.revokeObjectURL(a.href);
+};
+document.getElementById('loadBtn').onclick=()=>document.getElementById('projInput').click();
+document.getElementById('projInput').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    let d;try{d=JSON.parse(ev.target.result)}catch(err){alert('That file is not a valid Mood Board project.');return}
+    if(d._format!=='moodboard-studio'){alert('That file is not a Mood Board project (.moodboard.json).');return}
+    if(canvas.querySelector('.item')&&!confirm('Open this project? It will replace what is currently on your board.'))return;
+    applyData(d,true);save();
+  };
+  r.readAsText(f);
+  e.target.value='';
+};
+
+/* ---------- item factory ---------- */
+function buildItem(o){
+  const el=document.createElement('div');
+  el.className='item '+(o.type==='note'?'note':o.type==='swatch'?'swatchblock':o.type==='typeblock'?'typeblock':'');
+  el.dataset.type=o.type;
+  el.style.left=o.x||'120px';el.style.top=o.y||'120px';
+  el.style.width=o.w||(o.type==='note'?'180px':o.type==='swatch'?'110px':o.type==='typeblock'?'260px':'220px');
+  el.style.height=o.h||(o.type==='note'?'140px':o.type==='swatch'?'110px':o.type==='typeblock'?'160px':'160px');
+  el.style.zIndex=++z;
+  if(o.type==='image'){el.dataset.src=o.src;el.innerHTML=`<img src="${o.src}" crossorigin="anonymous">`}
+  if(o.type==='swatch'){el.dataset.color=o.color;el.style.background=o.color;el.textContent=o.color}
+  if(o.type==='note'){const t=document.createElement('textarea');t.value=o.text||'';t.placeholder='Note…';el.appendChild(t);t.addEventListener('input',save)}
+  if(o.type==='typeblock'){el.innerHTML=o.html}
+  el.dataset.rationale=o.rationale||'';
+  addControls(el);
+  canvas.appendChild(el);
+  return el;
+}
+function addControls(el){
+  const del=document.createElement('div');del.className='del';del.innerHTML='×';
+  del.onclick=e=>{e.stopPropagation();el.remove();save();checkEmpty()};
+  const rz=document.createElement('div');rz.className='resize';
+  const rat=document.createElement('div');rat.className='rationale'+(el.dataset.rationale?' filled':'');
+  rat.innerHTML='●';rat.title='Add rationale';
+  rat.onclick=e=>{e.stopPropagation();rationaleTarget=el;
+    document.getElementById('rationaleText').value=el.dataset.rationale||'';
+    document.getElementById('modal').classList.add('open')};
+  el.append(del,rz,rat);
+  makeDraggable(el,rz);
+  el.addEventListener('mousedown',()=>selectItem(el));
+}
+function selectItem(el){
+  document.querySelectorAll('.item').forEach(i=>i.classList.remove('selected'));
+  if(el){el.classList.add('selected');el.style.zIndex=++z}
+  selected=el;
+}
+stage.addEventListener('mousedown',e=>{if(e.target===stage||e.target===canvas)selectItem(null)});
+
+/* ---------- drag & resize ---------- */
+function makeDraggable(el,handle){
+  let sx,sy,ox,oy,mode;
+  function down(e,m){m==='drag'&&e.target.closest('.resize,.del,.rationale,textarea')?0:0;
+    mode=m;e.preventDefault();selectItem(el);
+    const ev=e.touches?e.touches[0]:e;sx=ev.clientX;sy=ev.clientY;
+    ox=parseInt(el.style.left);oy=parseInt(el.style.top);
+    ow=parseInt(el.style.width);oh=parseInt(el.style.height);
+    document.addEventListener('mousemove',move);document.addEventListener('mouseup',up);
+  }
+  let ow,oh;
+  function move(e){const ev=e.touches?e.touches[0]:e;
+    const dx=ev.clientX-sx,dy=ev.clientY-sy;
+    if(mode==='drag'){el.style.left=ox+dx+'px';el.style.top=oy+dy+'px';el.style.cursor='grabbing'}
+    else{el.style.width=Math.max(50,ow+dx)+'px';el.style.height=Math.max(50,oh+dy)+'px'}}
+  function up(){document.removeEventListener('mousemove',move);document.removeEventListener('mouseup',up);el.style.cursor='grab';save()}
+  el.addEventListener('mousedown',e=>{if(e.target.closest('.resize,.del,.rationale,textarea'))return;down(e,'drag')});
+  handle.addEventListener('mousedown',e=>{e.stopPropagation();down(e,'resize')});
+}
+
+/* ---------- panels ---------- */
+document.querySelectorAll('.tool[data-panel]').forEach(t=>{
+  t.onclick=()=>{const p='panel-'+t.dataset.panel;const panel=document.getElementById(p);
+    const isOpen=panel.classList.contains('open');
+    document.querySelectorAll('.panel').forEach(x=>x.classList.remove('open'));
+    document.querySelectorAll('.tool').forEach(x=>x.classList.remove('active'));
+    if(!isOpen){panel.classList.add('open');t.classList.add('active')}};
+});
+document.querySelector('.tool[data-action="note"]').onclick=()=>{
+  buildItem({type:'note',x:(stage.scrollLeft+200)+'px',y:'160px'});save();checkEmpty()};
+
+/* ---------- images ---------- */
+document.getElementById('fileInput').onchange=e=>{
+  [...e.target.files].forEach(f=>{const r=new FileReader();
+    r.onload=ev=>{buildItem({type:'image',src:ev.target.result});save();checkEmpty()};
+    r.readAsDataURL(f)})};
+document.getElementById('addUrl').onclick=()=>{
+  const u=document.getElementById('urlInput').value.trim();
+  if(u){embedImage(u);document.getElementById('urlInput').value=''}};
+// fetch a remote image and store it as embedded data so saved projects never break
+function embedImage(url){
+  const el=buildItem({type:'image',src:url});save();checkEmpty();
+  fetch(url).then(r=>r.blob()).then(b=>new Promise(res=>{
+    const fr=new FileReader();fr.onload=()=>res(fr.result);fr.readAsDataURL(b)}))
+    .then(data=>{el.dataset.src=data;el.querySelector('img').src=data;save();})
+    .catch(()=>{/* CORS-blocked: keep the URL; still works while link is live */});
+}
+document.getElementById('stockBtn').onclick=async()=>{
+  const q=document.getElementById('stockQ').value.trim();const box=document.getElementById('stockResults');
+  if(!PEXELS_KEY){box.innerHTML='<p style="font-size:11px;color:var(--muted);grid-column:1/3">Stock search needs a free Pexels API key. Add one at the top of the script, or use Upload / Paste URL instead.</p>';return}
+  box.innerHTML='Searching…';
+  try{const r=await fetch('https://api.pexels.com/v1/search?per_page=8&query='+encodeURIComponent(q),{headers:{Authorization:PEXELS_KEY}});
+    const d=await r.json();box.innerHTML='';
+    d.photos.forEach(p=>{const im=document.createElement('img');im.src=p.src.tiny;
+      im.style.cssText='width:100%;height:70px;object-fit:cover;border-radius:4px;cursor:pointer';
+      im.onclick=()=>{embedImage(p.src.medium)};box.appendChild(im)})}
+  catch(e){box.innerHTML='Search failed.'}};
+
+/* ---------- colour ---------- */
+document.getElementById('addSwatch').onclick=()=>{
+  buildItem({type:'swatch',color:document.getElementById('colorPick').value});save();checkEmpty()};
+document.getElementById('extractBtn').onclick=()=>{
+  if(!selected||selected.dataset.type!=='image'){alert('Select an image on the board first.');return}
+  const img=selected.querySelector('img');
+  const cv=document.createElement('canvas');const ctx=cv.getContext('2d');
+  const im=new Image();im.crossOrigin='anonymous';
+  im.onload=()=>{cv.width=60;cv.height=60;ctx.drawImage(im,0,0,60,60);
+    let data;try{data=ctx.getImageData(0,0,60,60).data}catch(e){alert('This image blocks colour extraction (CORS). Try an uploaded image.');return}
+    const buckets={};for(let i=0;i<data.length;i+=16){
+      const r=Math.round(data[i]/32)*32,g=Math.round(data[i+1]/32)*32,b=Math.round(data[i+2]/32)*32;
+      const k=r+','+g+','+b;buckets[k]=(buckets[k]||0)+1}
+    const top=Object.entries(buckets).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    const wrap=document.getElementById('extracted');wrap.innerHTML='';
+    top.forEach(([k])=>{const[r,g,b]=k.split(',').map(Number);
+      const hex='#'+[r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('');
+      const c=document.createElement('div');c.className='swatch-chip';c.style.background=hex;
+      c.innerHTML='<span>'+hex+'</span>';c.title='Click to add';
+      c.onclick=()=>{buildItem({type:'swatch',color:hex});save();checkEmpty()};wrap.appendChild(c)})};
+  im.src=img.src;};
+
+/* ---------- typography ---------- */
+const pairs=[
+  {n:'Editorial',d:'Fraunces',b:'Outfit'},
+  {n:'Technical',d:'Space Mono',b:'Outfit'},
+  {n:'Classic Serif',d:'Fraunces',b:'Fraunces'},
+];
+const fp=document.getElementById('fontPairs');
+pairs.forEach(p=>{const c=document.createElement('div');c.className='font-card';
+  c.innerHTML=`<div class="pair-name">${p.n}</div>
+    <div style="font-family:'${p.d}';font-size:22px;line-height:1.1">Display Aa</div>
+    <div style="font-family:'${p.b}';font-size:12px;color:var(--muted)">Body text — the quick brown fox.</div>`;
+  c.onclick=()=>{const html=`<div style="font-family:'${p.d}';font-size:24px;font-weight:600;margin-bottom:6px">Headline</div>
+    <div style="font-family:'${p.b}';font-size:12px;line-height:1.5;color:#555">Body copy sets the tone and rhythm of the design. The quick brown fox jumps over the lazy dog.</div>
+    <div style="font-family:'Space Mono';font-size:8px;margin-top:8px;color:#999">${p.d} / ${p.b}</div>`;
+    buildItem({type:'typeblock',html:html});save();checkEmpty()};
+  fp.appendChild(c)});
+
+/* ---------- rationale modal ---------- */
+document.getElementById('rSave').onclick=()=>{
+  if(rationaleTarget){rationaleTarget.dataset.rationale=document.getElementById('rationaleText').value;
+    rationaleTarget.querySelector('.rationale').classList.toggle('filled',!!rationaleTarget.dataset.rationale);save()}
+  document.getElementById('modal').classList.remove('open')};
+document.getElementById('rCancel').onclick=()=>document.getElementById('modal').classList.remove('open');
+
+/* ---------- rubric ---------- */
+document.getElementById('rubricToggle').onclick=()=>document.getElementById('rubric').classList.toggle('open');
+
+/* ---------- misc ---------- */
+function checkEmpty(){document.getElementById('emptyHint').style.display=canvas.querySelector('.item')?'none':'block'}
+document.getElementById('briefText').addEventListener('input',save);
+document.getElementById('boardName').addEventListener('input',save);
+document.getElementById('newBtn').onclick=()=>{if(confirm('Clear this board and start fresh?')){localStorage.removeItem(KEY);location.reload()}};
+
+/* ---------- export ---------- */
+function prepExport(){document.querySelectorAll('.item').forEach(i=>i.classList.remove('selected'));}
+document.getElementById('pngBtn').onclick=async()=>{prepExport();
+  const c=await html2canvas(canvas,{backgroundColor:'#f4efe6',scale:2,useCORS:true});
+  const a=document.createElement('a');a.download=(document.getElementById('boardName').value||'moodboard')+'.png';
+  a.href=c.toDataURL();a.click()};
+document.getElementById('pdfBtn').onclick=async()=>{prepExport();
+  const c=await html2canvas(canvas,{backgroundColor:'#f4efe6',scale:2,useCORS:true});
+  const {jsPDF}=window.jspdf;const pdf=new jsPDF({orientation:'landscape',unit:'px',format:[c.width,c.height]});
+  pdf.addImage(c.toDataURL('image/png'),'PNG',0,0,c.width,c.height);
+  pdf.save((document.getElementById('boardName').value||'moodboard')+'.pdf')};
+
+/* ---------- welcome / help ---------- */
+const WELCOME_KEY='moodboard.welcomed';
+function openWelcome(){document.getElementById('welcome').classList.add('open')}
+document.getElementById('welcomeStart').onclick=()=>{
+  document.getElementById('welcome').classList.remove('open');
+  try{localStorage.setItem(WELCOME_KEY,'1')}catch(e){}
+};
+document.getElementById('showWelcome').onclick=openWelcome;
+
+load();checkEmpty();
+// show welcome on first visit only
+let seen;try{seen=localStorage.getItem(WELCOME_KEY)}catch(e){seen='1'}
+if(!seen)openWelcome();
+</script>
+</body>
+</html>
